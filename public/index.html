@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sub-Store - 高级订阅管理器</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>Sub-Store</h1>
+                <span class="version">PHP 1.0.0</span>
+            </div>
+            <div class="nav-tabs">
+                <button class="tab-btn active" data-tab="subscriptions">订阅管理</button>
+                <button class="tab-btn" data-tab="collections">集合管理</button>
+                <button class="tab-btn" data-tab="artifacts">产物管理</button>
+                <button class="tab-btn" data-tab="files">文件管理</button>
+                <button class="tab-btn" data-tab="settings">系统设置</button>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 订阅管理 -->
+            <div id="subscriptions" class="tab-content active">
+                <div class="content-header">
+                    <h2>订阅管理</h2>
+                    <button class="btn btn-primary" onclick="showAddSubscriptionModal()">
+                        + 添加订阅
+                    </button>
+                </div>
+                <div id="subscriptions-list" class="cards-grid">
+                    <!-- 动态加载订阅列表 -->
+                </div>
+            </div>
+
+            <!-- 集合管理 -->
+            <div id="collections" class="tab-content">
+                <div class="content-header">
+                    <h2>集合管理</h2>
+                    <button class="btn btn-primary" onclick="showAddCollectionModal()">
+                        + 添加集合
+                    </button>
+                </div>
+                <div id="collections-list" class="cards-grid">
+                    <!-- 动态加载集合列表 -->
+                </div>
+            </div>
+
+            <!-- 产物管理 -->
+            <div id="artifacts" class="tab-content">
+                <div class="content-header">
+                    <h2>产物管理</h2>
+                    <button class="btn btn-primary" onclick="showAddArtifactModal()">
+                        + 添加产物
+                    </button>
+                </div>
+                <div id="artifacts-list" class="cards-grid">
+                    <!-- 动态加载产物列表 -->
+                </div>
+            </div>
+
+            <!-- 文件管理 -->
+            <div id="files" class="tab-content">
+                <div class="content-header">
+                    <h2>文件管理</h2>
+                    <button class="btn btn-primary" onclick="showAddFileModal()">
+                        + 添加文件
+                    </button>
+                </div>
+                <div id="files-list" class="cards-grid">
+                    <!-- 动态加载文件列表 -->
+                </div>
+            </div>
+
+            <!-- 系统设置 -->
+            <div id="settings" class="tab-content">
+                <div class="content-header">
+                    <h2>系统设置</h2>
+                </div>
+                <div class="settings-form">
+                    <div class="form-group">
+                        <label>GitHub Token (Gist)</label>
+                        <input type="text" id="gist-token" placeholder="输入你的 GitHub Token">
+                    </div>
+                    <div class="form-group">
+                        <label>缓存 TTL (秒)</label>
+                        <input type="number" id="cache-ttl" placeholder="3600" value="3600">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 模态框：添加/编辑订阅 -->
+    <div id="subscription-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('subscription-modal')">&times;</span>
+            <h2 id="modal-title">添加订阅</h2>
+            <form id="subscription-form">
+                <div class="form-group">
+                    <label>名称 *</label>
+                    <input type="text" id="sub-name" required placeholder="订阅名称">
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select id="sub-source">
+                        <option value="remote">远程订阅</option>
+                        <option value="local">本地订阅</option>
+                    </select>
+                </div>
+                <div class="form-group" id="url-group">
+                    <label>URL</label>
+                    <input type="url" id="sub-url" placeholder="https://example.com/sub">
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea id="sub-display-name" rows="3" placeholder="可选备注信息"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('subscription-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 模态框：添加/编辑集合 -->
+    <div id="collection-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('collection-modal')">&times;</span>
+            <h2 id="collection-modal-title">添加集合</h2>
+            <form id="collection-form">
+                <div class="form-group">
+                    <label>集合名称 *</label>
+                    <input type="text" id="col-name" required placeholder="集合名称">
+                </div>
+                <div class="form-group">
+                    <label>包含的订阅（多选）</label>
+                    <div id="col-subscriptions-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #dcdfe6; border-radius: 4px; padding: 8px;">
+                        <!-- 动态加载订阅列表 -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea id="col-display-name" rows="3" placeholder="可选备注信息"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('collection-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 模态框：添加/编辑产物 -->
+    <div id="artifact-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('artifact-modal')">&times;</span>
+            <h2 id="artifact-modal-title">添加产物</h2>
+            <form id="artifact-form">
+                <div class="form-group">
+                    <label>产物名称 *</label>
+                    <input type="text" id="artifact-name" required placeholder="产物名称">
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select id="artifact-type">
+                        <option value="subscription">订阅</option>
+                        <option value="collection">集合</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>源名称 *</label>
+                    <input type="text" id="artifact-source" required placeholder="订阅或集合名称">
+                </div>
+                <div class="form-group">
+                    <label>目标平台</label>
+                    <select id="artifact-platform">
+                        <option value="clash">Clash</option>
+                        <option value="surge">Surge</option>
+                        <option value="loon">Loon</option>
+                        <option value="qx">Quantumult X</option>
+                        <option value="v2ray">V2Ray</option>
+                        <option value="singbox">SingBox</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Gist 描述</label>
+                    <input type="text" id="artifact-description" placeholder="Gist 文件描述">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('artifact-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 模态框：添加/编辑文件 -->
+    <div id="file-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('file-modal')">&times;</span>
+            <h2 id="file-modal-title">添加文件</h2>
+            <form id="file-form">
+                <div class="form-group">
+                    <label>文件路径 *</label>
+                    <input type="text" id="file-path" required placeholder="例如: config/test.txt">
+                </div>
+                <div class="form-group">
+                    <label>文件内容</label>
+                    <textarea id="file-content" rows="10" placeholder="输入文件内容"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('file-modal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 加载提示 -->
+    <div id="loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>加载中...</p>
+    </div>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+</html>

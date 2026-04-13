@@ -1,0 +1,33 @@
+# 依赖
+/vendor/
+composer.lock
+
+# 环境变量
+.env
+
+# 数据库
+storage/database.sqlite
+storage/*.sqlite
+
+# 日志
+storage/logs/*.log
+storage/logs/*.txt
+
+# 缓存
+storage/cache/*
+!storage/cache/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sub-Store API 诊断工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .test-section {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+        .test-button:active {
+            transform: translateY(0);
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 500px;
+            overflow-y: auto;
+            border-left: 4px solid #667eea;
+        }
+        .success {
+            color: #28a745;
+            border-left-color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+            border-left-color: #dc3545;
+        }
+        .info {
+            background: #e7f3ff;
+            border-left-color: #2196F3;
+        }
+        .env-info {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Sub-Store API 诊断工具</h1>
+        
+        <div class="test-section">
+            <h2>1. 测试健康检查接口 <span id="health-badge"></span></h2>
+            <div class="btn-group">
+                <button class="test-button" onclick="testHealth()">测试 /api/test</button>
+                <button class="test-button" onclick="testHealth2()">测试 /health</button>
+            </div>
+            <div id="health-result" class="result">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. 测试订阅API <span id="subs-badge"></span></h2>
+            <div class="btn-group">
+                <button class="test-button" onclick="testSubs()">获取订阅列表</button>
+                <button class="test-button" onclick="testCreateSub()">创建测试订阅</button>
+                <button class="test-button" onclick="testDeleteSub()">删除测试订阅</button>
+            </div>
+            <div id="subs-result" class="result">等待测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. 环境信息</h2>
+            <div id="env-info" class="result env-info">加载中...</div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. 快速修复指南</h2>
+            <div class="result info">
+<strong>如果遇到 "非 JSON 响应" 错误，请检查：</strong>
+
+1️⃣ Nginx 伪静态配置是否正确
+   - 打开宝塔面板 → 网站 → 设置 → 伪静态
+   - 确保包含：try_files $uri $uri/ /index.php?$query_string;
+   - 保存后重载 Nginx
+
+2️⃣ 数据库文件权限
+   - storage/database.sqlite 需要可读写权限
+   - storage 目录需要 755 权限
+
+3️⃣ PHP 版本要求
+   - 需要 PHP 8.0 或更高版本
+   - 确保安装了 PDO、PDO SQLite、cURL 扩展
+
+4️⃣ 查看错误日志
+   - Nginx 错误日志：/www/wwwlogs/your-domain.error.log
+   - PHP 错误日志：/www/server/panel/logs/php_errors.log
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 显示环境信息
+        function showEnvInfo() {
+            const info = {
+                'User Agent': navigator.userAgent,
+                'Current URL': window.location.href,
+                'Base URL': window.location.origin,
+                'Pathname': window.location.pathname,
+                'Protocol': window.location.protocol,
+                'Timestamp': new Date().toLocaleString('zh-CN')
+            };
+            
+            document.getElementById('env-info').textContent = JSON.stringify(info, null, 2);
+        }
+        showEnvInfo();
+
+        function showBadge(elementId, success) {
+            const badge = document.getElementById(elementId);
+            if (success) {
+                badge.innerHTML = '<span class="badge badge-success">✅ 通过</span>';
+            } else {
+                badge.innerHTML = '<span class="badge badge-error">❌ 失败</span>';
+            }
+        }
+
+        async function testHealth() {
+            const result = document.getElementById('health-result');
+            try {
+                result.textContent = '⏳ 请求中...';
+                result.className = 'result';
+                
+                const response = await fetch('/api/test');
+                const contentType = response.headers.get('content-type');
+                const text = await response.text();
+                
+                let output = `状态码: ${response.status}\n`;
+                output += `Content-Type: ${contentType || 'N/A'}\n`;
+                output += `响应时间: ${new Date().toLocaleTimeString('zh-CN')}\n\n`;
+                output += `响应内容:\n${text}\n`;
+                
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const json = JSON.parse(text);
+                        output += `\n✅ JSON 解析成功:\n${JSON.stringify(json, null, 2)}`;
+                        result.className = 'result success';
+                        showBadge('health-badge', true);
+                    } catch (e) {
+                        output += `\n❌ JSON 解析失败: ${e.message}`;
+                        result.className = 'result error';
+                        showBadge('health-badge', false);
+                    }
+                } else {
+                    result.className = 'result error';
+                    output += '\n❌ 错误: 服务器返回了非 JSON 响应！';
+                    output += '\n\n💡 这通常意味着 Nginx 伪静态配置有问题。';
+                    showBadge('health-badge', false);
+                }
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 请求失败: ${error.message}\n\n${error.stack || ''}`;
+                showBadge('health-badge', false);
+            }
+        }
+
+        async function testHealth2() {
+            const result = document.getElementById('health-result');
+            try {
+                result.textContent = '⏳ 请求中...';
+                result.className = 'result';
+                
+                const response = await fetch('/health');
+                const contentType = response.headers.get('content-type');
+                const text = await response.text();
+                
+                let output = `状态码: ${response.status}\n`;
+                output += `Content-Type: ${contentType || 'N/A'}\n`;
+                output += `响应时间: ${new Date().toLocaleTimeString('zh-CN')}\n\n`;
+                output += `响应内容:\n${text}\n`;
+                
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const json = JSON.parse(text);
+                        output += `\n✅ JSON 解析成功:\n${JSON.stringify(json, null, 2)}`;
+                        result.className = 'result success';
+                        showBadge('health-badge', true);
+                    } catch (e) {
+                        output += `\n❌ JSON 解析失败: ${e.message}`;
+                        result.className = 'result error';
+                        showBadge('health-badge', false);
+                    }
+                } else {
+                    result.className = 'result error';
+                    output += '\n❌ 错误: 服务器返回了非 JSON 响应！';
+                    showBadge('health-badge', false);
+                }
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 请求失败: ${error.message}\n\n${error.stack || ''}`;
+                showBadge('health-badge', false);
+            }
+        }
+
+        async function testSubs() {
+            const result = document.getElementById('subs-result');
+            try {
+                result.textContent = '⏳ 请求中...';
+                result.className = 'result';
+                
+                const response = await fetch('/api/subs');
+                const contentType = response.headers.get('content-type');
+                const text = await response.text();
+                
+                let output = `状态码: ${response.status}\n`;
+                output += `Content-Type: ${contentType || 'N/A'}\n`;
+                output += `响应时间: ${new Date().toLocaleTimeString('zh-CN')}\n\n`;
+                
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const json = JSON.parse(text);
+                        output += `✅ JSON 解析成功\n\n`;
+                        output += `响应数据:\n${JSON.stringify(json, null, 2)}`;
+                        result.className = 'result success';
+                        showBadge('subs-badge', true);
+                    } catch (e) {
+                        output += `❌ JSON 解析失败: ${e.message}\n\n原始内容:\n${text.substring(0, 500)}`;
+                        result.className = 'result error';
+                        showBadge('subs-badge', false);
+                    }
+                } else {
+                    result.className = 'result error';
+                    output += `❌ 错误: 服务器返回了非 JSON 响应！\n\n`;
+                    output += `原始内容（前500字符）:\n${text.substring(0, 500)}`;
+                    showBadge('subs-badge', false);
+                }
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 请求失败: ${error.message}\n\n${error.stack || ''}`;
+                showBadge('subs-badge', false);
+            }
+        }
+
+        async function testCreateSub() {
+            const result = document.getElementById('subs-result');
+            const testName = '测试订阅_' + Date.now();
+            
+            try {
+                result.textContent = `⏳ 创建订阅: ${testName}...`;
+                result.className = 'result';
+                
+                const response = await fetch('/api/subs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: testName,
+                        source: 'local',
+                        remark: '这是一个自动创建的测试订阅'
+                    })
+                });
+                
+                const contentType = response.headers.get('content-type');
+                const text = await response.text();
+                
+                let output = `状态码: ${response.status}\n`;
+                output += `Content-Type: ${contentType || 'N/A'}\n`;
+                output += `响应时间: ${new Date().toLocaleTimeString('zh-CN')}\n\n`;
+                
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const json = JSON.parse(text);
+                        if (json.success) {
+                            output += `✅ 创建成功！\n\n订阅名称: ${testName}\n\n`;
+                            output += `完整响应:\n${JSON.stringify(json, null, 2)}`;
+                            result.className = 'result success';
+                            showBadge('subs-badge', true);
+                        } else {
+                            output += `❌ 创建失败\n\n错误信息: ${json.message || json.error}\n\n`;
+                            output += `完整响应:\n${JSON.stringify(json, null, 2)}`;
+                            result.className = 'result error';
+                            showBadge('subs-badge', false);
+                        }
+                    } catch (e) {
+                        output += `❌ JSON 解析失败: ${e.message}\n\n原始内容:\n${text.substring(0, 500)}`;
+                        result.className = 'result error';
+                        showBadge('subs-badge', false);
+                    }
+                } else {
+                    result.className = 'result error';
+                    output += `❌ 错误: 服务器返回了非 JSON 响应 (HTTP ${response.status})！\n\n`;
+                    output += `原始内容（前500字符）:\n${text.substring(0, 500)}`;
+                    showBadge('subs-badge', false);
+                }
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 请求失败: ${error.message}\n\n${error.stack || ''}`;
+                showBadge('subs-badge', false);
+            }
+        }
+
+        async function testDeleteSub() {
+            const result = document.getElementById('subs-result');
+            const testName = prompt('请输入要删除的订阅名称:', '测试订阅_');
+            
+            if (!testName) {
+                result.textContent = '❌ 操作已取消';
+                result.className = 'result error';
+                return;
+            }
+            
+            try {
+                result.textContent = `⏳ 删除订阅: ${testName}...`;
+                result.className = 'result';
+                
+                const response = await fetch(`/api/sub/${encodeURIComponent(testName)}`, {
+                    method: 'DELETE'
+                });
+                
+                const contentType = response.headers.get('content-type');
+                const text = await response.text();
+                
+                let output = `状态码: ${response.status}\n`;
+                output += `Content-Type: ${contentType || 'N/A'}\n`;
+                output += `响应时间: ${new Date().toLocaleTimeString('zh-CN')}\n\n`;
+                
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const json = JSON.parse(text);
+                        if (json.success) {
+                            output += `✅ 删除成功！\n\n订阅名称: ${testName}\n\n`;
+                            output += `完整响应:\n${JSON.stringify(json, null, 2)}`;
+                            result.className = 'result success';
+                        } else {
+                            output += `❌ 删除失败\n\n错误信息: ${json.message || json.error}\n\n`;
+                            output += `完整响应:\n${JSON.stringify(json, null, 2)}`;
+                            result.className = 'result error';
+                        }
+                    } catch (e) {
+                        output += `❌ JSON 解析失败: ${e.message}\n\n原始内容:\n${text.substring(0, 500)}`;
+                        result.className = 'result error';
+                    }
+                } else {
+                    result.className = 'result error';
+                    output += `❌ 错误: 服务器返回了非 JSON 响应 (HTTP ${response.status})！\n\n`;
+                    output += `原始内容（前500字符）:\n${text.substring(0, 500)}`;
+                }
+                result.textContent = output;
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = `❌ 请求失败: ${error.message}\n\n${error.stack || ''}`;
+            }
+        }
+    </script>
+</body>
+</html>
